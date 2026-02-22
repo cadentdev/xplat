@@ -163,7 +163,7 @@ def rename_file(
     if new_path == orig_path:
         return orig_path
 
-    if new_path.exists():
+    if new_path.exists() and not orig_path.samefile(new_path):
         if dry_run:
             raise FileExistsError(f"Target already exists: {new_path}")
         raise FileExistsError(f"File already exists: {new_path}")
