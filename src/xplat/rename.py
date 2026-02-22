@@ -40,54 +40,44 @@ def _normalize_whitespace(name: str) -> str:
     return re.sub(r"\s", " ", name).strip()
 
 
-def _apply_web(name: str) -> str:
-    """Web style: spaces→hyphens, dots→hyphens, keep hyphens, keep underscores, lowercase."""
-    result = name.replace(" ", "-").replace(".", "-").lower()
-    result = "".join(c for c in result if c.isalnum() or c in "-_")
-    while "--" in result:
-        result = result.replace("--", "-")
-    return result.strip("-")
+def _apply_delimiter_style(name: str, delim: str, convert_chars: str) -> str:
+    """Apply a delimiter-based style: replace chars, filter, collapse, strip.
 
-
-def _apply_snake(name: str) -> str:
-    """Snake style: spaces→underscores, dots→underscores, hyphens→underscores, lowercase."""
-    result = name.replace(" ", "_").replace(".", "_").replace("-", "_").lower()
-    result = "".join(c for c in result if c.isalnum() or c == "_")
-    while "__" in result:
-        result = result.replace("__", "_")
-    return result.strip("_")
-
-
-def _apply_kebab(name: str) -> str:
-    """Kebab style: spaces→hyphens, dots→hyphens, underscores→hyphens, lowercase."""
-    result = name.replace(" ", "-").replace(".", "-").replace("_", "-").lower()
-    result = "".join(c for c in result if c.isalnum() or c == "-")
-    while "--" in result:
-        result = result.replace("--", "-")
-    return result.strip("-")
+    Args:
+        name: Pre-normalized filename stem
+        delim: The delimiter character ("-" or "_")
+        convert_chars: Characters to convert to the delimiter (e.g., " ._" or " .-")
+    """
+    result = name.lower()
+    for ch in convert_chars:
+        result = result.replace(ch, delim)
+    # Keep only alphanumeric + delimiter (web also keeps underscores via allowed_extra)
+    allowed = {delim} | ({"_"} if delim == "-" and "_" not in convert_chars else set())
+    result = "".join(c for c in result if c.isalnum() or c in allowed)
+    double = delim + delim
+    while double in result:
+        result = result.replace(double, delim)
+    return result.strip(delim)
 
 
 def _apply_camel(name: str) -> str:
     """Camel style: remove separators, produce camelCase."""
-    # Split on any separator
     parts = re.split(r"[ .\-_]+", name)
-    # Filter to only alphanumeric content per part
-    clean_parts = []
-    for part in parts:
-        cleaned = "".join(c for c in part if c.isalnum())
-        if cleaned:
-            clean_parts.append(cleaned)
+    clean_parts = [
+        cleaned
+        for part in parts
+        if (cleaned := "".join(c for c in part if c.isalnum()))
+    ]
     if not clean_parts:
         return ""
-    # First part lowercase, rest title-cased
     return clean_parts[0].lower() + "".join(p.title() for p in clean_parts[1:])
 
 
-_STYLE_FUNCS = {
-    Style.web: _apply_web,
-    Style.snake: _apply_snake,
-    Style.kebab: _apply_kebab,
-    Style.camel: _apply_camel,
+# Style config: (delimiter, characters to convert to delimiter)
+_STYLE_CONFIG: dict[Style, tuple[str, str]] = {
+    Style.web: ("-", " ."),       # keep hyphens, keep underscores
+    Style.snake: ("_", " .-"),    # convert everything to underscore
+    Style.kebab: ("-", " ._"),    # convert everything to hyphen
 }
 
 
@@ -104,7 +94,10 @@ def safe_stem(name: str, style: Style = Style.web) -> str:
     normalized = _normalize_whitespace(name)
     if not normalized:
         return ""
-    return _STYLE_FUNCS[style](normalized)
+    if style == Style.camel:
+        return _apply_camel(normalized)
+    delim, convert_chars = _STYLE_CONFIG[style]
+    return _apply_delimiter_style(normalized, delim, convert_chars)
 
 
 def make_safe_path(
@@ -122,7 +115,10 @@ def make_safe_path(
     Returns:
         New Path with safe filename in original or target directory
     """
-    new_name = safe_stem(orig_path.stem, style) + orig_path.suffix.lower()
+    stem = safe_stem(orig_path.stem, style)
+    if not stem:
+        raise ValueError(f"Filename produces empty stem after sanitization: {orig_path.name}")
+    new_name = stem + orig_path.suffix.lower()
     return target_dir.joinpath(new_name) if target_dir else orig_path.with_name(new_name)
 
 

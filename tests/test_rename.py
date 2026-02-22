@@ -1,33 +1,17 @@
 """Tests for the rename module functionality."""
 
-from pathlib import Path
-
 import pytest
 
 from xplat import rename
 from xplat.rename import Style
 
 
-# Setup test directories
 @pytest.fixture
-def test_dirs():
-    """Create and return test directories, cleanup after test."""
-    test_path = Path.home().joinpath("tmp", "xplat_renamer_tests")
-    test_path.mkdir(parents=True, exist_ok=True)
-
-    output_path = test_path.joinpath("target")
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    yield test_path, output_path
-
-    # Cleanup after test
-    for file in output_path.iterdir():
-        file.unlink()
-    output_path.rmdir()
-
-    for file in test_path.iterdir():
-        file.unlink()
-    test_path.rmdir()
+def test_dirs(tmp_path):
+    """Create and return test directories using pytest tmp_path."""
+    output_path = tmp_path / "target"
+    output_path.mkdir()
+    return tmp_path, output_path
 
 
 @pytest.fixture
@@ -35,7 +19,6 @@ def test_files(test_dirs):
     """Create and return test files."""
     test_path, _ = test_dirs
 
-    # Create test files with spaces, dots, and mixed case
     file1 = test_path / "Space to Delim.test.FILE.TXT"
     file2 = test_path / "Another.Complex File.NAME.txt"
 
@@ -219,3 +202,65 @@ def test_rename_file_success(test_dirs, test_files):
     assert moved_path.exists()
     assert moved_path.name == "move-this-file.txt"
     assert moved_path.parent == target_dir
+
+
+# --- Additional edge case tests ---
+
+
+def test_safe_stem_already_safe():
+    """Already-safe input is returned unchanged (idempotent)."""
+    assert rename.safe_stem("already-safe") == "already-safe"
+    assert rename.safe_stem("already_safe", style=Style.snake) == "already_safe"
+    assert rename.safe_stem("already-safe", style=Style.kebab) == "already-safe"
+    assert rename.safe_stem("alreadySafe", style=Style.camel) == "alreadysafe"
+
+
+def test_safe_stem_mixed_unicode_whitespace():
+    """Mix of Unicode whitespace types all normalized."""
+    # tab + no-break space + narrow no-break space
+    assert rename.safe_stem("a\tb\u00a0c\u202fd") == "a-b-c-d"
+
+
+def test_safe_stem_tabs():
+    """Tab characters are treated as whitespace."""
+    assert rename.safe_stem("hello\tworld") == "hello-world"
+
+
+def test_safe_stem_only_whitespace():
+    """String of only whitespace returns empty."""
+    assert rename.safe_stem("   \t\n  ") == ""
+
+
+def test_safe_stem_numeric_only():
+    """Purely numeric stems are preserved."""
+    assert rename.safe_stem("12345") == "12345"
+
+
+def test_safe_stem_single_char():
+    """Single character is preserved."""
+    assert rename.safe_stem("a") == "a"
+
+
+def test_make_safe_path_no_extension(test_dirs):
+    """File with no extension gets safe stem only."""
+    test_path, _ = test_dirs
+    orig_path = test_path / "Makefile"
+    safe_path = rename.make_safe_path(orig_path)
+    assert safe_path.name == "makefile"
+
+
+def test_make_safe_path_empty_stem_raises(test_dirs):
+    """File that produces empty stem raises ValueError."""
+    test_path, _ = test_dirs
+    orig_path = test_path / "!!!.txt"
+    with pytest.raises(ValueError, match="empty stem"):
+        rename.make_safe_path(orig_path)
+
+
+def test_rename_file_empty_stem_raises(test_dirs):
+    """rename_file raises ValueError for filenames that produce empty stems."""
+    test_path, _ = test_dirs
+    bad_file = test_path / "!!!.txt"
+    bad_file.write_text("content")
+    with pytest.raises(ValueError, match="empty stem"):
+        rename.rename_file(bad_file)

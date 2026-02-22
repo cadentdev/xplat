@@ -21,7 +21,6 @@ VERSION = constants.VERSION
 APP_HELP = constants.APP_HELP
 NO_ERROR = constants.NO_ERROR
 NO_FILE = constants.NO_FILE
-BAD_REQUEST = constants.BAD_REQUEST
 
 
 def version_callback(is_version_requested: bool) -> None:
@@ -184,8 +183,6 @@ def rename_list(
     """
     Rename files in list, optionally to output directory
     """
-    convert_count = 0
-
     if dryrun:
         typer.secho("DRY RUN - No files will be changed", fg=typer.colors.YELLOW)
         typer.echo("")
@@ -194,10 +191,10 @@ def rename_list(
         start_label = "Converting file name:"
 
     skip_count = 0
-    for _, current_name in enumerate(files, start=1):
+    for current_name in files:
         try:
             rename_file_with_output(current_name, output_dir, dryrun, start_label, style)
-        except (FileExistsError, OSError) as e:
+        except (FileExistsError, OSError, ValueError) as e:
             print_error(f"Skipped: {e}")
             skip_count += 1
 
@@ -210,7 +207,6 @@ def rename_list(
             typer.echo(f"Files would be renamed and saved to: {output_dir}")
         else:
             typer.echo("Files would be renamed in place")
-        return convert_count
 
     return convert_count
 
@@ -312,33 +308,23 @@ def rename(
         rename_list([source], output_dir, dry_run, style)
         return
 
-    # Directory mode: get list of files
-    files = []
-    files_found = 0
-    for item in source.iterdir():
-        if item.is_file():
-            if ext is not None:
-                if item.suffix == f".{ext}":
-                    files.append(item)
-                    files_found += 1
-            else:
-                files.append(item)
-                files_found += 1
+    # Directory mode: collect matching files
+    files = [
+        item for item in source.iterdir()
+        if item.is_file() and (ext is None or item.suffix == f".{ext}")
+    ]
 
     # Only show file listing if in interactive mode or dry run
     if interactive and not dry_run:
-        # display list of files
         for count, file in enumerate(files, start=1):
             typer.echo(f"{count}) {file.name}")
-        # display summary
         typer.echo("----------------------")
-        typer.echo(f"Total files found = {files_found}")
+        typer.echo(f"Total files found = {len(files)}")
 
-        # confirm rename
         if output_dir is not None:
             typer.echo("Selected files will be renamed and saved to:")
             typer.echo(f"{output_dir}")
-            if not typer.confirm(f"Rename {files_found} files of type '{ext}'?"):
+            if not typer.confirm(f"Rename {len(files)} files of type '{ext}'?"):
                 raise typer.Abort()
         else:
             if not typer.confirm("No output directory specified. Rename files?"):
