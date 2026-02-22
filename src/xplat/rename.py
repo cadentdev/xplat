@@ -64,11 +64,7 @@ def _apply_delimiter_style(name: str, delim: str, convert_chars: str) -> str:
 def _apply_camel(name: str) -> str:
     """Camel style: remove separators, produce camelCase."""
     parts = re.split(r"[ .\-_]+", name)
-    clean_parts = [
-        cleaned
-        for part in parts
-        if (cleaned := "".join(c for c in part if c.isalnum()))
-    ]
+    clean_parts = [cleaned for part in parts if (cleaned := "".join(c for c in part if c.isalnum()))]
     if not clean_parts:
         return ""
     return clean_parts[0].lower() + "".join(p.title() for p in clean_parts[1:])
@@ -76,9 +72,9 @@ def _apply_camel(name: str) -> str:
 
 # Style config: (delimiter, characters to convert to delimiter)
 _STYLE_CONFIG: dict[Style, tuple[str, str]] = {
-    Style.web: ("-", " ."),       # keep hyphens, keep underscores
-    Style.snake: ("_", " .-"),    # convert everything to underscore
-    Style.kebab: ("-", " ._"),    # convert everything to hyphen
+    Style.web: ("-", " ."),  # keep hyphens, keep underscores
+    Style.snake: ("_", " .-"),  # convert everything to underscore
+    Style.kebab: ("-", " ._"),  # convert everything to hyphen
 }
 
 

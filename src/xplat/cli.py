@@ -317,10 +317,7 @@ def rename(
         return
 
     # Directory mode: collect matching files
-    files = [
-        item for item in source.iterdir()
-        if item.is_file() and (ext is None or item.suffix == f".{ext}")
-    ]
+    files = [item for item in source.iterdir() if item.is_file() and (ext is None or item.suffix == f".{ext}")]
 
     # Only show file listing if in interactive mode or dry run
     if interactive and not dry_run:
