@@ -36,7 +36,8 @@ class Style(str, Enum):
 
 
 def _normalize_whitespace(name: str) -> str:
-    """Normalize all Unicode whitespace to ASCII space, then strip."""
+    """Normalize all Unicode whitespace to ASCII space, strip null bytes, then strip."""
+    name = name.replace("\x00", " ")
     return re.sub(r"\s", " ", name).strip()
 
 
@@ -81,12 +82,13 @@ _STYLE_CONFIG: dict[Style, tuple[str, str]] = {
 }
 
 
-def safe_stem(name: str, style: Style = Style.web) -> str:
+def safe_stem(name: str, style: Style = Style.web, *, max_bytes: int = 255) -> str:
     """Transform a filename stem to be platform and web-friendly.
 
     Args:
         name: Original filename stem
         style: Naming style (default: web)
+        max_bytes: Maximum byte length for the result (default: NAME_MAX)
 
     Returns:
         Transformed filename stem using the specified style.
@@ -95,9 +97,14 @@ def safe_stem(name: str, style: Style = Style.web) -> str:
     if not normalized:
         return ""
     if style == Style.camel:
-        return _apply_camel(normalized)
-    delim, convert_chars = _STYLE_CONFIG[style]
-    return _apply_delimiter_style(normalized, delim, convert_chars)
+        result = _apply_camel(normalized)
+    else:
+        delim, convert_chars = _STYLE_CONFIG[style]
+        result = _apply_delimiter_style(normalized, delim, convert_chars)
+    # Truncate to stay within filesystem NAME_MAX limit
+    while len(result.encode("utf-8")) > max_bytes:
+        result = result[:-1]
+    return result.rstrip("-_")
 
 
 def make_safe_path(
@@ -115,10 +122,12 @@ def make_safe_path(
     Returns:
         New Path with safe filename in original or target directory
     """
-    stem = safe_stem(orig_path.stem, style)
+    suffix = orig_path.suffix.lower()
+    suffix_bytes = len(suffix.encode("utf-8"))
+    stem = safe_stem(orig_path.stem, style, max_bytes=255 - suffix_bytes)
     if not stem:
         raise ValueError(f"Filename produces empty stem after sanitization: {orig_path.name}")
-    new_name = stem + orig_path.suffix.lower()
+    new_name = stem + suffix
     return target_dir.joinpath(new_name) if target_dir else orig_path.with_name(new_name)
 
 
@@ -154,7 +163,13 @@ def rename_file(
 
     new_path = make_safe_path(orig_path, target_dir, style)
 
-    if not dry_run and new_path.exists():
+    # Already safe — no rename needed
+    if new_path == orig_path:
+        return orig_path
+
+    if new_path.exists():
+        if dry_run:
+            raise FileExistsError(f"Target already exists: {new_path}")
         raise FileExistsError(f"File already exists: {new_path}")
 
     if not dry_run:

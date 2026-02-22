@@ -538,3 +538,74 @@ def test_rename_help_shows_style():
     result = _runner.invoke(app, ["rename", "--help"])
     assert result.exit_code == 0
     assert "--style" in result.stdout
+
+
+# --- Security hardening tests ---
+
+
+def test_rename_single_file_symlink_rejected():
+    """Symlink passed as single file source to rename CLI is rejected."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        real = temp_dir / "real.txt"
+        real.write_text("content")
+        link = temp_dir / "link.txt"
+        link.symlink_to(real)
+
+        result = runner.invoke(app, ["rename", str(link), "--dry-run"])
+        assert result.exit_code == 1
+        assert "symlink" in result.stdout.lower()
+
+
+def test_rename_directory_symlink_rejected():
+    """Symlink to directory passed as source to rename CLI is rejected."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        real_dir = temp_dir / "real_dir"
+        real_dir.mkdir()
+        (real_dir / "file.txt").write_text("content")
+        link_dir = temp_dir / "link_dir"
+        link_dir.symlink_to(real_dir)
+
+        result = runner.invoke(app, ["rename", str(link_dir), "--dry-run"])
+        assert result.exit_code == 1
+        assert "symlink" in result.stdout.lower()
+
+
+def test_rename_dry_run_collision_shows_warning():
+    """Dry-run mode warns when target already exists."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        output_dir = temp_dir / "output"
+        output_dir.mkdir()
+        # Create source and pre-existing target
+        (temp_dir / "Test File.txt").write_text("source")
+        (output_dir / "test-file.txt").write_text("existing")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--output-dir", str(output_dir), "--dry-run"],
+        )
+        assert result.exit_code == 0
+        assert "exists" in result.stdout.lower() or "skip" in result.stdout.lower()
+
+
+def test_rename_long_filename_handled():
+    """Very long filename is handled gracefully without crash."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        output_dir = temp_dir / "output"
+        output_dir.mkdir()
+        # Create file with very long name (within filesystem limit for source)
+        long_name = "a" * 240 + ".txt"
+        (temp_dir / long_name).write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--output-dir", str(output_dir)],
+        )
+        assert result.exit_code == 0

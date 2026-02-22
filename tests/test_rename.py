@@ -264,3 +264,64 @@ def test_rename_file_empty_stem_raises(test_dirs):
     bad_file.write_text("content")
     with pytest.raises(ValueError, match="empty stem"):
         rename.rename_file(bad_file)
+
+
+# --- Security hardening tests ---
+
+
+def test_safe_stem_very_long_name():
+    """Very long filename is truncated to stay within filesystem limits."""
+    long_name = "a" * 300
+    result = rename.safe_stem(long_name)
+    # stem + extension must fit in 255 bytes (NAME_MAX)
+    # safe_stem truncates stem to leave room for extension
+    assert len(result) <= 255
+    assert len(result) > 0
+
+
+def test_safe_stem_null_bytes():
+    """Null bytes are stripped from filename input."""
+    assert rename.safe_stem("hello\x00world") == "hello-world"
+    assert rename.safe_stem("\x00\x00\x00") == ""
+
+
+def test_rename_already_safe_skips(test_dirs):
+    """Renaming a file that's already safe-named returns same path without error."""
+    test_path, _ = test_dirs
+    safe_file = test_path / "already-safe.txt"
+    safe_file.write_text("content")
+    result = rename.rename_file(safe_file)
+    # Should return the same path (no rename needed)
+    assert result == safe_file
+    assert safe_file.exists()
+
+
+def test_rename_already_safe_different_case(test_dirs):
+    """File with uppercase extension gets lowercased even if stem is safe."""
+    test_path, _ = test_dirs
+    mixed_file = test_path / "safe-stem.TXT"
+    mixed_file.write_text("content")
+    result = rename.rename_file(mixed_file)
+    assert result.name == "safe-stem.txt"
+    assert result.exists()
+
+
+def test_rename_file_symlink_in_single_mode(test_dirs):
+    """Symlink passed directly to rename_file is rejected with OSError."""
+    test_path, _ = test_dirs
+    real = test_path / "real.txt"
+    real.write_text("content")
+    link = test_path / "link.txt"
+    link.symlink_to(real)
+    with pytest.raises(OSError, match="symlink"):
+        rename.rename_file(link)
+
+
+def test_make_safe_path_long_stem_with_extension(test_dirs):
+    """Long stem is truncated accounting for extension length."""
+    test_path, _ = test_dirs
+    long_name = "a" * 300 + ".jpeg"
+    orig_path = test_path / long_name
+    safe_path = rename.make_safe_path(orig_path)
+    # Full filename (stem + extension) must fit in 255 bytes
+    assert len(safe_path.name.encode("utf-8")) <= 255

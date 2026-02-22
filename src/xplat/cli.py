@@ -279,6 +279,14 @@ def rename(
     if source is None:
         source = Path.cwd()
 
+    # Reject symlinks before any other checks
+    if source.is_symlink():
+        typer.secho(
+            f"Source is a symlink: {source}. Refusing to operate on symlinks.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+
     # Check source exists
     if not source.exists():
         typer.secho(
