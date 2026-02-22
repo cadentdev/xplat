@@ -2,11 +2,11 @@
 Functions for transforming filenames to be platform and web-friendly.
 Handles conversion of spaces, dots, and case in filenames.
 
-Changes filename to avoid platform, path, URL issues:
-* Spaces to delimiter
-* Dots to underscore
-* All lowercase
-* web and internet friendly
+Supports multiple naming styles:
+* web (default): lowercase, hyphens — URL-safe
+* snake: lowercase, underscores — Python/filesystem-friendly
+* kebab: lowercase, hyphens — same as web but converts underscores
+* camel: camelCase — no separators
 
 Characters allowed in a URL:
 ABCDEFGHIJKLMNOPQRSTUVWXYZ
@@ -21,59 +21,124 @@ or
 https://www.ietf.org/rfc/rfc1738.txt
 """
 
+import re
+from enum import Enum
 from pathlib import Path
 
 
-def safe_stem(name: str, delim: str = "_") -> str:
+class Style(str, Enum):
+    """Naming style for safe filenames."""
+
+    web = "web"
+    snake = "snake"
+    kebab = "kebab"
+    camel = "camel"
+
+
+def _normalize_whitespace(name: str) -> str:
+    """Normalize all Unicode whitespace to ASCII space, then strip."""
+    return re.sub(r"\s", " ", name).strip()
+
+
+def _apply_web(name: str) -> str:
+    """Web style: spaces→hyphens, dots→hyphens, keep hyphens, keep underscores, lowercase."""
+    result = name.replace(" ", "-").replace(".", "-").lower()
+    result = "".join(c for c in result if c.isalnum() or c in "-_")
+    while "--" in result:
+        result = result.replace("--", "-")
+    return result.strip("-")
+
+
+def _apply_snake(name: str) -> str:
+    """Snake style: spaces→underscores, dots→underscores, hyphens→underscores, lowercase."""
+    result = name.replace(" ", "_").replace(".", "_").replace("-", "_").lower()
+    result = "".join(c for c in result if c.isalnum() or c == "_")
+    while "__" in result:
+        result = result.replace("__", "_")
+    return result.strip("_")
+
+
+def _apply_kebab(name: str) -> str:
+    """Kebab style: spaces→hyphens, dots→hyphens, underscores→hyphens, lowercase."""
+    result = name.replace(" ", "-").replace(".", "-").replace("_", "-").lower()
+    result = "".join(c for c in result if c.isalnum() or c == "-")
+    while "--" in result:
+        result = result.replace("--", "-")
+    return result.strip("-")
+
+
+def _apply_camel(name: str) -> str:
+    """Camel style: remove separators, produce camelCase."""
+    # Split on any separator
+    parts = re.split(r"[ .\-_]+", name)
+    # Filter to only alphanumeric content per part
+    clean_parts = []
+    for part in parts:
+        cleaned = "".join(c for c in part if c.isalnum())
+        if cleaned:
+            clean_parts.append(cleaned)
+    if not clean_parts:
+        return ""
+    # First part lowercase, rest title-cased
+    return clean_parts[0].lower() + "".join(p.title() for p in clean_parts[1:])
+
+
+_STYLE_FUNCS = {
+    Style.web: _apply_web,
+    Style.snake: _apply_snake,
+    Style.kebab: _apply_kebab,
+    Style.camel: _apply_camel,
+}
+
+
+def safe_stem(name: str, style: Style = Style.web) -> str:
     """Transform a filename stem to be platform and web-friendly.
 
     Args:
         name: Original filename stem
-        delim: Delimiter to use (default: underscore)
+        style: Naming style (default: web)
 
     Returns:
-        Transformed filename stem:
-        - Spaces replaced with delimiter
-        - Dots replaced with underscore
-        - All lowercase
-        - Only alphanumeric and delimiter chars
-        - No double delimiters
+        Transformed filename stem using the specified style.
     """
-    # Convert to lowercase and replace spaces
-    new_name = name.replace(" ", delim).lower()
-    # Replace dots with underscore (preserve delim if different)
-    new_name = new_name.replace(".", "_")
-    # Keep only alphanumeric and delimiter chars
-    new_name = "".join(c for c in new_name if c.isalnum() or c == delim)
-    # Remove double delimiters
-    while delim + delim in new_name:
-        new_name = new_name.replace(delim + delim, delim)
-    return new_name
+    normalized = _normalize_whitespace(name)
+    if not normalized:
+        return ""
+    return _STYLE_FUNCS[style](normalized)
 
 
-def make_safe_path(orig_path: Path, target_dir: Path | None = None) -> Path:
+def make_safe_path(
+    orig_path: Path,
+    target_dir: Path | None = None,
+    style: Style = Style.web,
+) -> Path:
     """Create a new Path with safe filename in target directory.
 
     Args:
         orig_path: Original file path
         target_dir: Optional target directory for new path
+        style: Naming style (default: web)
 
     Returns:
         New Path with safe filename in original or target directory
     """
-    # Create safe filename
-    new_name = safe_stem(orig_path.stem) + orig_path.suffix.lower()
-    # Return path in target dir if specified, otherwise same dir
+    new_name = safe_stem(orig_path.stem, style) + orig_path.suffix.lower()
     return target_dir.joinpath(new_name) if target_dir else orig_path.with_name(new_name)
 
 
-def rename_file(orig_path: Path, target_dir: Path | None = None, dry_run: bool = False) -> Path:
+def rename_file(
+    orig_path: Path,
+    target_dir: Path | None = None,
+    dry_run: bool = False,
+    style: Style = Style.web,
+) -> Path:
     """Rename file to be platform and web-friendly.
 
     Args:
         orig_path: Path to original file
         target_dir: Optional target directory for renamed file
         dry_run: If True, only return the new path without performing rename
+        style: Naming style (default: web)
 
     Returns:
         Path to renamed file (or would-be path if dry_run=True)
@@ -84,7 +149,6 @@ def rename_file(orig_path: Path, target_dir: Path | None = None, dry_run: bool =
         FileExistsError: If target path already exists (unless dry_run=True)
         OSError: If original path is a symlink
     """
-    # Validate inputs
     if orig_path.is_symlink():
         raise OSError(f"Refusing to operate on symlink: {orig_path}")
     if not orig_path.is_file():
@@ -92,14 +156,11 @@ def rename_file(orig_path: Path, target_dir: Path | None = None, dry_run: bool =
     if target_dir and not target_dir.is_dir():
         raise NotADirectoryError(f"Not a directory: {target_dir}")
 
-    # Get new path
-    new_path = make_safe_path(orig_path, target_dir)
+    new_path = make_safe_path(orig_path, target_dir, style)
 
-    # Check if target exists (skip if dry_run)
     if not dry_run and new_path.exists():
         raise FileExistsError(f"File already exists: {new_path}")
 
-    # Perform rename unless dry_run
     if not dry_run:
         orig_path.rename(new_path)
 

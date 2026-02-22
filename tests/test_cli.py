@@ -137,7 +137,7 @@ def test_rename_list():
         output_dir = temp_dir / "output"
         output_dir.mkdir()
 
-        # Test dry-run mode first
+        # Test dry-run mode first (web style default: hyphens)
         file_names = ["file with spaces.txt", "file#with#special#chars!.txt"]
         test_files = []
         for name in file_names:
@@ -150,20 +150,20 @@ def test_rename_list():
         # Original files should still exist
         for file_path in test_files:
             assert file_path.exists()
-        # Output files should not exist
-        assert not (output_dir / "file_with_spaces.txt").exists()
+        # Output files should not exist (web style: hyphens)
+        assert not (output_dir / "file-with-spaces.txt").exists()
         assert not (output_dir / "filewithspecialchars.txt").exists()
 
         # Now test non-interactive mode
         convert_count = rename_list(test_files, output_dir)
         assert convert_count == 2
-        # Check renamed files exist
-        assert (output_dir / "file_with_spaces.txt").exists()
+        # Check renamed files exist (web style: hyphens)
+        assert (output_dir / "file-with-spaces.txt").exists()
         assert (output_dir / "filewithspecialchars.txt").exists()
 
 
 def test_rename_command():
-    """Test the rename command with various options"""
+    """Test the rename command with various options using positional source"""
     runner = CliRunner()
     with tempfile.TemporaryDirectory() as temp_dir:
         temp_dir = Path(temp_dir)
@@ -174,12 +174,11 @@ def test_rename_command():
         test_file = temp_dir / "Test File.txt"
         test_file.write_text("test content")
 
-        # Test dry run mode
+        # Test dry run mode (positional source arg, web style default)
         result = runner.invoke(
             app,
             [
                 "rename",
-                "--source-dir",
                 str(temp_dir),
                 "--output-dir",
                 str(output_dir),
@@ -189,20 +188,19 @@ def test_rename_command():
         assert result.exit_code == 0
         assert "DRY RUN" in result.stdout
 
-        # Test non-interactive mode (default)
+        # Test non-interactive mode (default) — web style produces hyphens
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", str(temp_dir), "--output-dir", str(output_dir)],
+            ["rename", str(temp_dir), "--output-dir", str(output_dir)],
         )
         assert result.exit_code == 0
-        assert (output_dir / "test_file.txt").exists()
+        assert (output_dir / "test-file.txt").exists()
 
         # Test interactive mode with confirmation
         result = runner.invoke(
             app,
             [
                 "rename",
-                "--source-dir",
                 str(temp_dir),
                 "--output-dir",
                 str(output_dir),
@@ -217,7 +215,6 @@ def test_rename_command():
             app,
             [
                 "rename",
-                "--source-dir",
                 str(temp_dir),
                 "--output-dir",
                 str(output_dir),
@@ -292,14 +289,11 @@ def test_list_help():
 
 
 def test_rename_help():
-    """
-    Test that `xplat rename --help` works without crashing.
-    This test should FAIL with current Typer 0.9.x due to compatibility issues.
-    """
+    """Test that `xplat rename --help` shows positional source and --style."""
     result = _runner.invoke(app, ["rename", "--help"])
     assert result.exit_code == constants.NO_ERROR
     assert "rename" in result.stdout.lower()
-    assert "--source-dir" in result.stdout
+    assert "--style" in result.stdout
     assert "--output-dir" in result.stdout
     assert "--dry-run" in result.stdout
     assert "--interactive" in result.stdout
@@ -337,7 +331,7 @@ def test_rename_rejects_invalid_extension():
     with tempfile.TemporaryDirectory() as temp_dir:
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", temp_dir, "--ext", "**/*", "--dry-run"],
+            ["rename", temp_dir, "--ext", "**/*", "--dry-run"],
         )
         assert result.exit_code == 1
 
@@ -349,12 +343,12 @@ def test_version_from_metadata():
     assert constants.VERSION != "0.0.0-dev"
 
 
-def test_rename_nonexistent_source_dir():
-    """Test that rename rejects a non-existent source directory."""
+def test_rename_nonexistent_source():
+    """Test that rename rejects a non-existent source path."""
     runner = CliRunner()
     result = runner.invoke(
         app,
-        ["rename", "--source-dir", "/nonexistent/path", "--dry-run"],
+        ["rename", "/nonexistent/path", "--dry-run"],
     )
     assert result.exit_code == 1
     assert "does not exist" in result.stdout
@@ -366,7 +360,7 @@ def test_rename_nonexistent_output_dir():
     with tempfile.TemporaryDirectory() as temp_dir:
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", temp_dir, "--output-dir", "/nonexistent/output"],
+            ["rename", temp_dir, "--output-dir", "/nonexistent/output"],
         )
         assert result.exit_code == 1
         assert "does not exist" in result.stdout
@@ -382,7 +376,7 @@ def test_rename_dry_run_no_output_dir():
 
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", str(temp_dir), "--dry-run"],
+            ["rename", str(temp_dir), "--dry-run"],
         )
         assert result.exit_code == 0
         assert "renamed in place" in result.stdout
@@ -402,11 +396,12 @@ def test_rename_with_extension_filter():
 
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", str(temp_dir), "--output-dir", str(output_dir), "--ext", "txt"],
+            ["rename", str(temp_dir), "--output-dir", str(output_dir), "--ext", "txt"],
         )
         assert result.exit_code == 0
-        assert (output_dir / "keep_this.txt").exists()
-        assert not (output_dir / "skip_this.pdf").exists()
+        # Web style: hyphens
+        assert (output_dir / "keep-this.txt").exists()
+        assert not (output_dir / "skip-this.pdf").exists()
 
 
 def test_rename_collision_skips_gracefully():
@@ -417,18 +412,18 @@ def test_rename_collision_skips_gracefully():
         output_dir = temp_dir / "output"
         output_dir.mkdir()
 
-        # Create source file and pre-existing target
+        # Create source file and pre-existing target (web style: hyphens)
         (temp_dir / "Test File.txt").write_text("source")
-        (output_dir / "test_file.txt").write_text("existing")
+        (output_dir / "test-file.txt").write_text("existing")
 
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", str(temp_dir), "--output-dir", str(output_dir)],
+            ["rename", str(temp_dir), "--output-dir", str(output_dir)],
         )
         assert result.exit_code == 0
         assert "Skipped" in result.stdout
         # Original target content preserved
-        assert (output_dir / "test_file.txt").read_text() == "existing"
+        assert (output_dir / "test-file.txt").read_text() == "existing"
 
 
 def test_rename_interactive_abort_no_output_dir():
@@ -440,7 +435,128 @@ def test_rename_interactive_abort_no_output_dir():
 
         result = runner.invoke(
             app,
-            ["rename", "--source-dir", str(temp_dir), "--interactive"],
+            ["rename", str(temp_dir), "--interactive"],
             input="n\n",
         )
         assert result.exit_code == 1
+
+
+# --- New tests: positional source argument ---
+
+
+def test_rename_positional_dir():
+    """Test rename with positional directory argument."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        (temp_dir / "Test File.txt").write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--dry-run"],
+        )
+        assert result.exit_code == 0
+        assert "DRY RUN" in result.stdout
+        assert "test-file" in result.stdout
+
+
+def test_rename_positional_file():
+    """Test rename with positional single file argument."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        test_file = temp_dir / "My Screenshot.png"
+        test_file.write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(test_file), "--dry-run"],
+        )
+        assert result.exit_code == 0
+        assert "my-screenshot" in result.stdout
+
+
+def test_rename_default_cwd():
+    """Test rename with no source argument defaults to cwd."""
+    runner = CliRunner()
+    # Invoke without source arg — should not crash (may find no files in cwd)
+    result = runner.invoke(app, ["rename", "--dry-run"])
+    assert result.exit_code == 0
+
+
+# --- New tests: --style flag ---
+
+
+def test_rename_style_snake():
+    """Test rename with --style snake."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        output_dir = temp_dir / "output"
+        output_dir.mkdir()
+        (temp_dir / "Test File.txt").write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--output-dir", str(output_dir), "--style", "snake"],
+        )
+        assert result.exit_code == 0
+        assert (output_dir / "test_file.txt").exists()
+
+
+def test_rename_style_kebab():
+    """Test rename with --style kebab."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        output_dir = temp_dir / "output"
+        output_dir.mkdir()
+        (temp_dir / "Test_File.txt").write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--output-dir", str(output_dir), "--style", "kebab"],
+        )
+        assert result.exit_code == 0
+        assert (output_dir / "test-file.txt").exists()
+
+
+def test_rename_style_camel():
+    """Test rename with --style camel."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        output_dir = temp_dir / "output"
+        output_dir.mkdir()
+        (temp_dir / "Test File.txt").write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--output-dir", str(output_dir), "--style", "camel"],
+        )
+        assert result.exit_code == 0
+        assert (output_dir / "testFile.txt").exists()
+
+
+def test_rename_style_web_default():
+    """Test that no --style flag defaults to web (hyphens)."""
+    runner = CliRunner()
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_dir = Path(temp_dir)
+        output_dir = temp_dir / "output"
+        output_dir.mkdir()
+        (temp_dir / "Test File.txt").write_text("content")
+
+        result = runner.invoke(
+            app,
+            ["rename", str(temp_dir), "--output-dir", str(output_dir)],
+        )
+        assert result.exit_code == 0
+        assert (output_dir / "test-file.txt").exists()
+
+
+def test_rename_help_shows_style():
+    """Test that --style appears in rename help output."""
+    result = _runner.invoke(app, ["rename", "--help"])
+    assert result.exit_code == 0
+    assert "--style" in result.stdout
