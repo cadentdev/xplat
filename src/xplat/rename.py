@@ -159,8 +159,8 @@ def rename_file(
 
     new_path = make_safe_path(orig_path, target_dir, style)
 
-    # Already safe — no rename needed
-    if new_path == orig_path:
+    # Already safe — no rename needed (compare strings for case-sensitivity on Windows)
+    if str(new_path) == str(orig_path):
         return orig_path
 
     if new_path.exists() and not orig_path.samefile(new_path):
