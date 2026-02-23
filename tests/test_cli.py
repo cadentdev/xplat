@@ -316,7 +316,7 @@ def test_rename_rejects_invalid_extension():
 
 def test_version_from_metadata():
     """Test that version is loaded from package metadata."""
-    assert constants.VERSION == "0.2.0"
+    assert constants.VERSION == "0.3.0"
     assert isinstance(constants.VERSION, str)
     assert constants.VERSION != "0.0.0-dev"
 
