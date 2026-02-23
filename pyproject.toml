@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "xplat"
-version = "0.2.0"
+version = "0.3.0"
 description = "Cross-platform tools for batch file management and conversion"
 authors = ["Neil Johnson <neil@cadent.com>"]
 packages = [{ include = "xplat", from = "src" }]

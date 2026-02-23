@@ -67,7 +67,7 @@
   - [x] ~~pillow 9.4.0~~ - Removed (not used)
   - [x] Updated all dev/test dependencies to current versions
 - [x] Consider pytest dependency updates — upgraded to pytest ^8.0.0 ✅
-- [ ] Evaluate test coverage improvement opportunities (currently 88%)
+- [x] Evaluate test coverage improvement opportunities (currently 88%) — now 98% (74 tests)
 - [ ] **Performance improvements from dependency reduction**
   - [x] Faster installs with 18 fewer dependencies
   - [x] Smaller Docker images / deployment footprint
@@ -93,11 +93,13 @@ Updates to the CLI interface, by module.
 
 ### rename
 
-- [ ] Make the source directory the default (no option flag required)
-- [ ] Use the current directory if no source directory is specified (turn on Interactive mode to confirm)
-- [ ] Support conversion of a single file
-- [ ] Keep hyphens ("-") in file names
-- [ ] Remove leading, trailing spaces from file names
+- [x] Make the source directory the default (no option flag required) — positional `source` arg
+- [x] Use the current directory if no source directory is specified — defaults to cwd
+- [x] Support conversion of a single file — `source.is_file()` path
+- [x] Keep hyphens ("-") in file names — web style (default) preserves hyphens (#18)
+- [x] Remove leading, trailing spaces from file names — `_normalize_whitespace()` strips
+- [x] Handle Unicode whitespace (U+202F, U+00A0, etc.) — `re.sub(r"\s", ...)` (#29)
+- [x] Style system: `--style` flag with web/snake/kebab/camel options
 
 ## Recent Achievements (2026-02-19)
 

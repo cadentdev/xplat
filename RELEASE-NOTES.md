@@ -1,5 +1,43 @@
 # Release Notes
 
+## v0.3.0 — Style-Based Rename with Security Hardening (2026-02-22)
+
+Your filenames should work everywhere. On any OS, in any URL, in any script. That's what xplat v0.3.0 delivers.
+
+xplat is an open-source Python CLI that batch-renames files for cross-platform compatibility. Drop a folder of macOS screenshots with Unicode whitespace and mixed case into xplat, and out come clean, URL-safe filenames that work on Linux, Windows, and the web.
+
+What's new in v0.3.0:
+
+The rename command got a complete overhaul with a new style system. Four naming styles to match how you work:
+
+- web (default): my-file-name.txt -- URL-safe, lowercase, hyphens
+- snake: my_file_name.txt -- Python and filesystem conventions
+- kebab: my-file-name.txt -- converts underscores to hyphens too
+- camel: myFileName.txt -- for codebases that prefer camelCase
+
+Just run: xplat rename ~/screenshots --style snake --dry-run
+
+The CLI is simpler now. The source path is a positional argument instead of a flag. Single files, directories, or default to the current directory. Less typing, same power.
+
+Under the hood, this release resolves two long-standing issues. Hyphens are no longer stripped from filenames (#18, open since 2023). Unicode whitespace from macOS screenshots -- the invisible characters that break shell tools and file APIs -- is now properly normalized (#29).
+
+Security was a priority again. A red team pass uncovered and fixed:
+
+- Filename length overflow (>255 bytes crashed the OS)
+- Null byte injection bypassing normalization
+- Symlink traversal at the CLI level
+- Silent failures on case-only renames (macOS/Windows)
+- Dry-run mode hiding target collisions
+- 6 CVEs in dev dependencies (all patched)
+
+The numbers: 74 tests at 98% coverage across 3 operating systems and 2 Python versions. Zero errors from mypy, ruff, bandit, and pip-audit. Every security finding tested, fixed, and verified before merge.
+
+This is what happens when you combine TDD discipline with adversarial AI analysis. Write the failing tests first, implement the fix, red team the result. Repeat until nothing breaks.
+
+github.com/cadentdev/xplat
+
+#OpenSource #Python #CLI #DevSecOps #CrossPlatform #TDD #AgenticDevelopment #AI
+
 ## v0.2.0 — Security Hardening & Agentic Red Team (2026-02-19)
 
 We had 32 AI agents try to break our software before we shipped it. Here's what happened.

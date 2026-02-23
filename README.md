@@ -71,12 +71,13 @@ poetry run pip-audit
 poetry run pytest && poetry run ruff check . && poetry run mypy . --no-error-summary
 ```
 
-**Current Quality Status** (2026-02-19):
-- Tests: 21/21 passing (100%)
-- Coverage: 87% (289 statements, 38 missed)
+**Current Quality Status** (2026-02-22):
+- Tests: 74/74 passing (100%)
+- Coverage: 98%
 - MyPy: 0 errors across 6 source files
 - Ruff: 0 linting or formatting issues
 - Bandit: 0 security findings
+- pip-audit: 0 known vulnerabilities
 - CI: Green on Ubuntu, macOS, Windows (Python 3.12, 3.13)
 
 ### Pre-commit Hooks (Recommended)
@@ -160,17 +161,22 @@ xplat list ~/Downloads/ --ext pdf
 
 ## rename
 
-Convert names of multiple files for internet compatibility; specifically:
+Convert file names for cross-platform and web compatibility using a style-based system. Four naming styles are available:
 
-- Replace spaces with underscores ("_")
-- Replace all periods with underscores ("_")
-- Convert all characters to lower case
+| Style | Separator | Example |
+|-------|-----------|---------|
+| **web** (default) | hyphens | `My File.v2.txt` → `my-file-v2.txt` |
+| **snake** | underscores | `My File.v2.txt` → `my_file_v2.txt` |
+| **kebab** | hyphens (converts underscores too) | `My_File.v2.txt` → `my-file-v2.txt` |
+| **camel** | none | `My File.v2.txt` → `myFileV2.txt` |
 
-You can either rename the files in place (in the same directory) or copy them to a different directory when you rename them.
+All styles normalize Unicode whitespace, strip leading/trailing spaces, collapse consecutive separators, and lowercase extensions.
+
+The source is a positional argument — pass a file, a directory, or omit it to use the current directory.
 
 Options:
 
-- `-s, --source-dir`: Source directory containing files to rename (required)
+- `--style`: Naming style — `web`, `snake`, `kebab`, or `camel` (default: `web`)
 - `-o, --output-dir`: Output directory to save renamed files
 - `-e, --ext`: Case-sensitive file extension filter
 - `-n, --dry-run`: Preview changes without modifying files
@@ -179,17 +185,23 @@ Options:
 Some examples:
 
 ```bash
-# Use dry run to preview name conversion for all files in ~/Downloads
-xplat rename --source-dir ~/Downloads --dry-run
+# Preview name conversion for all files in ~/Downloads (web style, default)
+xplat rename ~/Downloads --dry-run
+
+# Rename using snake_case style
+xplat rename ~/Downloads --style snake --dry-run
 
 # Move and rename all PDF files from ~/Downloads to ~/temp
-xplat rename --source-dir ~/Downloads --output-dir ~/temp --ext pdf
+xplat rename ~/Downloads --output-dir ~/temp --ext pdf
 
-# Rename files with interactive confirmation
-xplat rename --source-dir ~/Photos --interactive
+# Rename a single file
+xplat rename ~/Photos/My\ Photo.PNG
 
-# Preview renaming of JPG files only
-xplat rename --source-dir ~/Photos --ext jpg --dry-run
+# Rename files in current directory with interactive confirmation
+xplat rename --interactive
+
+# Preview renaming of JPG files only using kebab-case
+xplat rename ~/Photos --ext jpg --style kebab --dry-run
 ```
 
 ## FAQ

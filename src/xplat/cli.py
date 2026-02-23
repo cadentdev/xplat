@@ -13,7 +13,7 @@ import typer
 from xplat import constants
 from xplat.info import create_platform_report
 from xplat.list import FileInfo, check_file, create_file_list, validate_extension
-from xplat.rename import rename_file
+from xplat.rename import Style, rename_file
 
 # numeric constants
 PROGRAM_NAME = constants.PROGRAM_NAME
@@ -21,7 +21,6 @@ VERSION = constants.VERSION
 APP_HELP = constants.APP_HELP
 NO_ERROR = constants.NO_ERROR
 NO_FILE = constants.NO_FILE
-BAD_REQUEST = constants.BAD_REQUEST
 
 
 def version_callback(is_version_requested: bool) -> None:
@@ -161,6 +160,7 @@ def rename_file_with_output(
     output_dir: Path | None = None,
     dry_run: bool = False,
     label: str = "",
+    style: Style = Style.web,
 ) -> None:
     """
     Renames a file with the given name to a new name
@@ -169,7 +169,7 @@ def rename_file_with_output(
     typer.echo(label)
     typer.secho(f"Original: {file_name}", fg=typer.colors.CYAN)
     typer.echo("  to:")
-    new_path = rename_file(file_name, output_dir, dry_run)
+    new_path = rename_file(file_name, output_dir, dry_run, style)
     typer.secho(f"     New: {new_path}", fg=typer.colors.BRIGHT_CYAN)
     typer.echo("")
 
@@ -178,12 +178,11 @@ def rename_list(
     files: list,
     output_dir: Path | None = None,
     dryrun: bool = False,
+    style: Style = Style.web,
 ) -> int:
     """
     Rename files in list, optionally to output directory
     """
-    convert_count = 0
-
     if dryrun:
         typer.secho("DRY RUN - No files will be changed", fg=typer.colors.YELLOW)
         typer.echo("")
@@ -192,10 +191,10 @@ def rename_list(
         start_label = "Converting file name:"
 
     skip_count = 0
-    for _, current_name in enumerate(files, start=1):
+    for current_name in files:
         try:
-            rename_file_with_output(current_name, output_dir, dryrun, start_label)
-        except (FileExistsError, OSError) as e:
+            rename_file_with_output(current_name, output_dir, dryrun, start_label, style)
+        except (FileExistsError, OSError, ValueError) as e:
             print_error(f"Skipped: {e}")
             skip_count += 1
 
@@ -208,7 +207,6 @@ def rename_list(
             typer.echo(f"Files would be renamed and saved to: {output_dir}")
         else:
             typer.echo("Files would be renamed in place")
-        return convert_count
 
     return convert_count
 
@@ -269,17 +267,30 @@ def list_files(
 
 @app.command()
 def rename(
-    source_dir: Annotated[Path, typer.Option("--source-dir", "-s", help="Source directory")],
+    source: Annotated[Path | None, typer.Argument(help="File or directory to rename (default: current directory)")] = None,
     output_dir: Annotated[Path | None, typer.Option("--output-dir", "-o", help="Output directory")] = None,
     ext: Annotated[str | None, typer.Option("--ext", "-e", help="File extension filter")] = None,
     dry_run: Annotated[bool, typer.Option("--dry-run", "-n", help="Preview changes without modifying")] = False,
     interactive: Annotated[bool, typer.Option("--interactive", "-i", help="Interactive confirmation mode")] = False,
+    style: Annotated[Style, typer.Option("--style", help="Naming style: web, snake, kebab, camel")] = Style.web,
 ) -> None:
     """Convert file names for cross-platform compatibility"""
-    # check source dir exists
-    if not source_dir.exists():
+    # Default to current directory if no source given
+    if source is None:
+        source = Path.cwd()
+
+    # Reject symlinks before any other checks
+    if source.is_symlink():
         typer.secho(
-            f"Source directory {source_dir} does not exist.",
+            f"Source is a symlink: {source}. Refusing to operate on symlinks.",
+            fg=typer.colors.RED,
+        )
+        raise typer.Exit(1)
+
+    # Check source exists
+    if not source.exists():
+        typer.secho(
+            f"Source {source} does not exist.",
             fg=typer.colors.RED,
         )
         raise typer.Exit(1)
@@ -300,39 +311,31 @@ def rename(
             typer.secho(str(e), fg=typer.colors.RED)
             raise typer.Exit(1) from e
 
-    # get list of files
-    files = []
-    files_found = 0
-    for item in source_dir.iterdir():
-        if item.is_file():
-            if ext is not None:
-                if item.suffix == f".{ext}":
-                    files.append(item)
-                    files_found += 1
-            else:
-                files.append(item)
-                files_found += 1
+    # Single file mode
+    if source.is_file():
+        rename_list([source], output_dir, dry_run, style)
+        return
+
+    # Directory mode: collect matching files
+    files = [item for item in source.iterdir() if item.is_file() and (ext is None or item.suffix == f".{ext}")]
 
     # Only show file listing if in interactive mode or dry run
     if interactive and not dry_run:
-        # display list of files
         for count, file in enumerate(files, start=1):
             typer.echo(f"{count}) {file.name}")
-        # display summary
         typer.echo("----------------------")
-        typer.echo(f"Total files found = {files_found}")
+        typer.echo(f"Total files found = {len(files)}")
 
-        # confirm rename
         if output_dir is not None:
             typer.echo("Selected files will be renamed and saved to:")
             typer.echo(f"{output_dir}")
-            if not typer.confirm(f"Rename {files_found} files of type '{ext}'?"):
+            if not typer.confirm(f"Rename {len(files)} files of type '{ext}'?"):
                 raise typer.Abort()
         else:
             if not typer.confirm("No output directory specified. Rename files?"):
                 raise typer.Abort()
 
-    rename_list(files, output_dir, dry_run)
+    rename_list(files, output_dir, dry_run, style)
 
 
 if __name__ == "__main__":

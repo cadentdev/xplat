@@ -14,12 +14,35 @@
 - [x] **21/21 tests passing** on Ubuntu, macOS, Windows (Python 3.12, 3.13)
 - [x] **0 errors** across mypy, ruff, bandit
 
-## Open Items (v0.2.1+)
+## Completed in v0.3.0 (2026-02-22)
+
+### Style-Based Rename System
+- [x] **Style system** - `--style` flag with web/snake/kebab/camel naming styles
+- [x] **Positional source argument** - `xplat rename <path>` replaces `--source-dir` flag
+- [x] **Single file support** - `xplat rename file.txt` renames a single file
+- [x] **Current directory default** - `xplat rename` with no args uses cwd
+- [x] **Preserve hyphens** - Web style (default) keeps hyphens in filenames (#18)
+- [x] **Unicode whitespace** - Handles U+202F, U+00A0 from macOS screenshots (#29)
+- [x] **Strip leading/trailing spaces** - Normalized before transformation
+
+### Security Hardening (Red Team Pass)
+- [x] **Null byte injection** - Null bytes normalized to spaces in `_normalize_whitespace()`
+- [x] **Filename length overflow** - `safe_stem()` truncates to NAME_MAX (255 bytes)
+- [x] **Symlink traversal at CLI** - CLI rejects symlinks before any file operations
+- [x] **Case-only rename on case-insensitive FS** - Uses `samefile()` for macOS/Windows
+- [x] **Dry-run collision detection** - Shows target exists error in dry-run mode
+- [x] **Dev dependency CVEs** - Updated filelock, urllib3, virtualenv
+
+### Quality
+- [x] **74/74 tests passing** on Ubuntu, macOS, Windows (Python 3.12, 3.13)
+- [x] **98% test coverage**
+- [x] **0 errors** across mypy, ruff, bandit, pip-audit
+
+## Open Items (v0.3.1+)
 
 ### Code Quality
 - [ ] **Fix `info.py` builtin shadowing** - Rename `property` variable to `value` in `add_list()` to avoid shadowing Python builtin
 - [ ] **Add timezone awareness** - `list.py:17` `datetime.fromtimestamp()` should use explicit timezone
-- [ ] **Increase test coverage** - Currently 87% (289 stmts, 38 missed). Key gaps: `cli.py` interactive prompts, old rename path
 
 ### Refactoring
 - [ ] **Decompose `rename` command** - `cli.py` rename function is too long; extract file discovery, validation, and confirmation into helpers
@@ -41,11 +64,6 @@
 - [ ] `list`: Use current directory as default when no path specified
 - [ ] `info`: Separate data collection from formatting
 - [ ] `info`: Export to JSON format
-- [ ] `rename`: Make source directory the default positional argument
-- [ ] `rename`: Use current directory when no source specified (with interactive confirmation)
-- [ ] `rename`: Support renaming a single file
-- [ ] `rename`: Preserve hyphens in file names
-- [ ] `rename`: Strip leading/trailing spaces from file names
 
 ### Infrastructure
 - [ ] Evaluate replacing `colorama` + raw `typer.secho` with `rich` for better terminal output
