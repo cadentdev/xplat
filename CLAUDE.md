@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Xplat is a cross-platform Python CLI tool for batch file management and conversion operations. Built with Python 3.12+ using Poetry for dependency management and Typer for the CLI interface.
 
-**Current Status** (2026-02-19): Version 0.2.0. CI fully green. All mypy, ruff, and bandit checks pass. 21/21 tests, 87% coverage. Builds on Ubuntu, macOS, Windows with Python 3.12 and 3.13.
+**Current Status** (2026-02-22): Version 0.3.0. CI fully green. All mypy, ruff, bandit, and pip-audit checks pass. 74/74 tests, 98% coverage. Builds on Ubuntu, macOS, Windows with Python 3.12 and 3.13.
 
 ## Development Commands
 
@@ -51,12 +51,13 @@ Xplat is a cross-platform Python CLI tool for batch file management and conversi
 4. **Before Push**: `poetry run pytest && poetry run ruff check . && poetry run mypy . --no-error-summary`
 5. **Specific Issue Debugging**: Use targeted ruff rules for focused fixes
 
-### Quality Metrics (2026-02-19)
-- **Tests**: 21/21 passing
-- **Test Coverage**: 87% (289 statements, 38 missed)
+### Quality Metrics (2026-02-22)
+- **Tests**: 74/74 passing
+- **Test Coverage**: 98%
 - **MyPy**: 0 errors
 - **Ruff**: 0 linting or formatting issues
 - **Bandit**: 0 security findings
+- **pip-audit**: 0 known vulnerabilities
 - **CI**: Green on all 6 matrix jobs (3 OS x 2 Python versions)
 
 ## Architecture
@@ -97,13 +98,15 @@ The CLI has been refactored with improved patterns:
 - Enhanced dry-run output with detailed formatting
 - Interactive mode with per-file confirmation
 - Improved error handling with proper exceptions (FileNotFoundError, FileExistsError)
-- Smart filename transformation: spaces→delimiters, dots→underscores, lowercase normalization
+- Style-based filename transformation: web (hyphens), snake (underscores), kebab, camel
+- Unicode whitespace normalization, null byte rejection, filename length truncation
 
 ### Available Commands
 - `info` - Platform and Python environment information
 - `list` - Interactive directory listing with file selection and detailed info display
-- `rename` - Enhanced batch file renaming with multiple options:
-  - `-s/--source-dir`: Source directory (required)
+- `rename` - Style-based batch file renaming with multiple options:
+  - `SOURCE` (positional): File or directory to rename (default: current directory)
+  - `--style`: Naming style — `web` (default), `snake`, `kebab`, `camel`
   - `-o/--output-dir`: Output directory (optional)
   - `-e/--ext`: File extension filter (optional)
   - `-n/--dry-run`: Preview changes without modifying files
