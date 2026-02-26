@@ -136,6 +136,9 @@ dmypy.json
 # VSCode
 /.vscode/
 
+# Obsidian
+.obsidian/
+
 # Temp and swap
 *.swp
 *.tmp
