@@ -78,30 +78,30 @@ Save this as `~/Library/LaunchAgents/com.cadentdev.xplat-watch.plist`:
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>~/.local/bin/xplat-watch.sh</string>
-        <!-- Change this to the folder you want to watch -->
-        <string>~/Documents/screencap</string>
+        <!-- Use full paths — launchd does NOT expand ~ here -->
+        <string>/Users/YOURNAME/.local/bin/xplat-watch.sh</string>
+        <string>/Users/YOURNAME/Documents/screencap</string>
     </array>
 
     <key>WatchPaths</key>
     <array>
-        <!-- Change this to the folder you want to watch -->
-        <string>~/Documents/screencap</string>
+        <string>/Users/YOURNAME/Documents/screencap</string>
     </array>
 
     <key>RunAtLoad</key>
     <false/>
 
+    <!-- Use full paths — launchd does NOT expand ~ here -->
     <key>StandardOutPath</key>
-    <string>~/.local/log/xplat-watch.log</string>
+    <string>/Users/YOURNAME/.local/log/xplat-watch.log</string>
 
     <key>StandardErrorPath</key>
-    <string>~/.local/log/xplat-watch.log</string>
+    <string>/Users/YOURNAME/.local/log/xplat-watch.log</string>
 </dict>
 </plist>
 ```
 
-**Important:** Replace `~/Documents/screencap` (both occurrences) with the folder you want to watch. launchd expands `~` in plist values.
+**Important:** Replace `YOURNAME` with your macOS username (run `whoami` to check) and update the watched folder path. launchd does **not** expand `~` in `ProgramArguments`, `StandardOutPath`, or `StandardErrorPath` — you must use full paths.
 
 ### Load and test
 
