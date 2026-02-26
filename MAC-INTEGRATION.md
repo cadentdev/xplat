@@ -170,11 +170,7 @@ XPLAT_PATH="$HOME/.local/bin"
 export PATH="$XPLAT_PATH:/usr/local/bin:/usr/bin:/bin"
 
 for f in "$@"; do
-    if [ -d "$f" ]; then
-        xplat rename "$f"
-    else
-        xplat rename "$f"
-    fi
+    xplat rename "$f"
 done
 ```
 
