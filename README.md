@@ -252,6 +252,10 @@ xplat rename --interactive
 xplat rename ~/Photos --ext jpg --style kebab --dry-run
 ```
 
+## macOS Integration
+
+Automate xplat with a **launchd folder watcher** (auto-rename files dropped into a folder) or a **Finder Quick Action** (right-click to rename). See [MAC-INTEGRATION.md](MAC-INTEGRATION.md) for setup instructions.
+
 ## FAQ
 
 Some questions and answers about the `xplat` utility.
