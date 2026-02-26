@@ -32,6 +32,54 @@ Designed from the start to work across platforms, `xplat` includes these feature
 
 Note: if you don't want to invoke the poetry virtual environment using `poetry shell`, you can simply prefix your commands with `poetry run`. For example, enter `poetry run xplat --help`.
 
+## Installing with pipx
+
+If you just want to use `xplat` as a standalone command without activating a virtual environment, [pipx](https://pipx.pypa.io/) is the recommended approach. It installs Python CLI tools into isolated environments and makes them available globally.
+
+### Install pipx
+
+If you don't already have pipx:
+
+```bash
+# macOS
+brew install pipx
+pipx ensurepath
+
+# Linux / Windows
+pip install --user pipx
+pipx ensurepath
+```
+
+Restart your shell after running `ensurepath` so the PATH changes take effect.
+
+### Standard install
+
+```bash
+pipx install /path/to/xplat
+```
+
+This creates an isolated virtualenv for xplat and adds the `xplat` command to your PATH. Use this when you want a stable, fixed version.
+
+### Editable install (recommended for development)
+
+```bash
+pipx install --editable /path/to/xplat
+```
+
+With an editable install, changes you make to the source code are reflected immediately — no reinstall needed. This is ideal if you're actively working on xplat.
+
+### Verify the installation
+
+```bash
+xplat --help
+```
+
+### Uninstall
+
+```bash
+pipx uninstall xplat
+```
+
 ## Development and Testing
 
 ### Running Tests
